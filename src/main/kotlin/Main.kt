@@ -2,8 +2,10 @@ import java.util.logging.Logger
 import org.powbot.api.Condition
 import org.powbot.api.Notifications
 import org.powbot.api.rt4.*
+import org.powbot.api.rt4.walking.model.Skill
 import org.powbot.api.script.AbstractScript
 import org.powbot.api.script.ScriptManifest
+import org.powbot.api.script.paint.PaintBuilder
 import org.powbot.mobile.script.ScriptManager
 import utils.Constants.Items
 import utils.Task
@@ -25,9 +27,20 @@ class EthBraceAlcher: AbstractScript() {
         AlchEthBrace(log),
     )
 
+    var currentTaskName = "N/A"
+
+    override fun onStart() {
+        val paint = PaintBuilder.newBuilder()
+            .trackSkill(Skill.Magic)
+            .addString("Action", { currentTaskName })
+
+        addPaint(paint.build())
+    }
+
     override fun poll() {
         for (task in tasks) {
             if (task.check()) {
+                currentTaskName = task.getName()
                 task.exec()
                 break
             }
