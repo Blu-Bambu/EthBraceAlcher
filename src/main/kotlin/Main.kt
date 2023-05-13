@@ -7,12 +7,18 @@ import org.powbot.api.script.AbstractScript
 import org.powbot.api.script.ScriptManifest
 import org.powbot.api.script.paint.PaintBuilder
 import org.powbot.mobile.script.ScriptManager
-import utils.Constants.Items
+import org.powbot.mobile.service.ScriptUploader
+import utils.Items
 import utils.Task
-import java.lang.System.Logger.Level
 
-fun main(args: Array<String>){
-    EthBraceAlcher().startScript()
+fun main(){
+    ScriptUploader().uploadAndStart(
+        "Blu Ethereum Bracelet Alcher",
+        "",
+        "192.168.50.177:35523",
+        true,
+        false
+    )
 }
 
 @ScriptManifest(
@@ -20,19 +26,18 @@ fun main(args: Array<String>){
     description = "Creates charged ethereum bracelets and alchs them",
 )
 class EthBraceAlcher: AbstractScript() {
-    val tasks = arrayOf(
-        GetEthBraceMaterialFromBank(log),
-        CheckOnlyOneEtherInInv(log),
+    private var tasks = arrayOf(
         CreateChargedEthBrace(log),
         AlchEthBrace(log),
+        GetEthBraceMaterialFromBank(log),
+        CheckOnlyOneEtherInInv(log),
     )
-
-    var currentTaskName = "N/A"
+    private var currentTaskName = "N/A"
 
     override fun onStart() {
         val paint = PaintBuilder.newBuilder()
             .trackSkill(Skill.Magic)
-            .addString("Action", { currentTaskName })
+            .addString("Action") { currentTaskName }
 
         addPaint(paint.build())
     }
@@ -56,7 +61,7 @@ class GetEthBraceMaterialFromBank(logger: Logger): Task(logger) {
 
     override fun exec() {
         if (!Bank.opened()) {
-            if (!Bank.open() || !Condition.wait{ Bank.opened() }) {
+            if (!(Bank.open() && Condition.wait{ Bank.opened() })) {
                 logger.warning("Failed to open bank")
                 return
             }
@@ -104,13 +109,13 @@ class CheckOnlyOneEtherInInv(log: Logger): Task(log) {
 
     override fun exec() {
         if (!Bank.opened()) {
-            if (!Bank.open() || !Condition.wait{ Bank.opened() }) {
+            if (!(Bank.open() && Condition.wait{ Bank.opened() })) {
                 logger.warning("Failed to open bank")
                 return
             }
         }
 
-        if (Bank.deposit(Items.ETHER.id, Bank.Amount.ALL_BUT_ONE)) {
+        if (Bank.deposit(Items.ETHER.id, Items.ETHER.countFromInv() - 1)) {
             Condition.wait{ Items.ETHER.countFromInv() == 1 }
         } else {
             logger.warning("Failed to deposit all but one ether")
@@ -134,12 +139,12 @@ class CreateChargedEthBrace(log: Logger): Task(log) {
         }
 
         logger.info("Highlighting ether")
-        if (!Items.ETHER.interact("Use") ||
-            !Condition.wait{ Inventory.selectedItem().id == Items.ETHER.id }) {
-            logger.info("Combining ether and uncharged eth brace")
-            if (!Items.UNCHARGED_ETH_BRACE_ID.interact("Use") || !
-                Condition.wait{ Items.CHARGED_ETH_BRACE_ID.isPresentInInv() }) {
-                logger.warning("Failed to combine ether and uncharged eth brace")
+        if (Items.ETHER.interact("Use"))
+            if (Condition.wait{ Inventory.selectedItem().id == Items.ETHER.id }) {
+                logger.info("Combining ether and uncharged eth brace")
+                if (!Items.UNCHARGED_ETH_BRACE_ID.interact("Use") || !
+                    Condition.wait{ Items.CHARGED_ETH_BRACE_ID.isPresentInInv() }) {
+                    logger.warning("Failed to combine ether and uncharged eth brace")
             }
         } else {
             logger.warning("Failed to highlight ether")
